@@ -1,19 +1,33 @@
 package store
 
 type Store struct {
-	data map[string]string
+	data     map[string]*Node
+	capacity int
 }
 
-func NewStore() *Store {
-	return &Store{data: make(map[string]string)}
+func NewStore(capacity int) *Store {
+	return &Store{data: make(map[string]*Node),
+		capacity: capacity}
 
 }
-func (str *Store) Set(key, value string) {
-	str.data[key] = value
+func (str *Store) Set(key, value string) bool {
+	if str.capacity > 0 {
+
+		str.data[key] = &Node{
+			value: value,
+		}
+		str.capacity--
+
+		return true
+	}
+	return false
 }
 func (str *Store) Get(key string) (string, bool) {
-	value, ok := str.data[key]
-	return value, ok
+	node, ok := str.data[key]
+	if !ok {
+		return "", !ok
+	}
+	return node.value, ok
 }
 func (str *Store) Delete(key string) bool {
 	if _, ok := str.data[key]; !ok {
