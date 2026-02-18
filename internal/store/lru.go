@@ -1,22 +1,29 @@
 package store
 
 type Node struct {
+	key   string
 	value string
 	prev  *Node
 	next  *Node
 }
 type LruList struct {
-	head *Node
-	tail *Node
+	Head *Node
+	Tail *Node
 }
 
-func (st *LruList) AddToHead(node *Node) {
-
+func NewLru() *LruList {
+	return &LruList{}
 }
-func (st *Node) RemoveNode(node *Node) bool {
-	if node == nil {
+
+func (st *LruList) RemoveLeastUsed() bool {
+	if st.Tail == nil {
 		return false
 	}
+	temp := st.Tail
+	st.Tail = temp.prev
+	if st.Tail != nil {
+		st.Tail.next = nil
+	}
+	temp = nil
 	return true
-
 }
