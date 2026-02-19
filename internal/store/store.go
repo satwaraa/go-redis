@@ -25,6 +25,11 @@ func (str *Store) Set(key string, value string) bool {
 		value: value,
 		key:   key,
 	}
+	if node, ok := str.data[key]; ok {
+		node.value = value
+		str.lru.MoveToHead(node)
+		return true
+	}
 
 	if len(str.data) < str.capacity {
 

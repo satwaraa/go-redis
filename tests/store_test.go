@@ -201,6 +201,80 @@ func TestStoreUpdateExistingKey(t *testing.T) {
 	}
 }
 
+func TestUpdateDoesNotCreateDuplicateNodes(t *testing.T) {
+	myStore := store.NewStore(2)
+
+	myStore.Set("key1", "value1")
+	myStore.Set("key2", "value2")
+
+	// Update key1 multiple times — should NOT increase store size
+	myStore.Set("key1", "v1_update1")
+	myStore.Set("key1", "v1_update2")
+	myStore.Set("key1", "v1_update3")
+
+	// Both keys should still exist (no eviction from updates)
+	val1, ok1 := myStore.Get("key1")
+	if !ok1 || val1 != "v1_update3" {
+		t.Errorf("Expected v1_update3, got %s, ok: %v", val1, ok1)
+	}
+
+	val2, ok2 := myStore.Get("key2")
+	if !ok2 || val2 != "value2" {
+		t.Errorf("Expected key2 to still exist with value2, got %s, ok: %v", val2, ok2)
+	}
+}
+
+func TestUpdateMovesToHead(t *testing.T) {
+	myStore := store.NewStore(2)
+
+	myStore.Set("old", "value_old")
+	myStore.Set("new", "value_new")
+
+	// Update "old" — moves it to head, making "new" the tail (LRU)
+	myStore.Set("old", "value_old_updated")
+
+	// Add a third key — should evict "new" (now LRU), not "old"
+	myStore.Set("key3", "value3")
+
+	// "old" should exist (was moved to head by update)
+	val, ok := myStore.Get("old")
+	if !ok || val != "value_old_updated" {
+		t.Errorf("Expected old to exist with value_old_updated, got %s, ok: %v", val, ok)
+	}
+
+	// "new" should be evicted
+	_, ok2 := myStore.Get("new")
+	if ok2 {
+		t.Errorf("Expected 'new' to be evicted since 'old' was moved to head by update")
+	}
+
+	// key3 should exist
+	val3, ok3 := myStore.Get("key3")
+	if !ok3 || val3 != "value3" {
+		t.Errorf("Expected key3 to exist with value3, got %s, ok: %v", val3, ok3)
+	}
+}
+
+func TestUpdateAtCapacityDoesNotEvict(t *testing.T) {
+	myStore := store.NewStore(2)
+
+	myStore.Set("key1", "value1")
+	myStore.Set("key2", "value2")
+
+	// Store is at capacity. Updating existing key should NOT evict anything
+	myStore.Set("key2", "updated_value2")
+
+	val1, ok1 := myStore.Get("key1")
+	if !ok1 || val1 != "value1" {
+		t.Errorf("Expected key1 to still exist after update, got %s, ok: %v", val1, ok1)
+	}
+
+	val2, ok2 := myStore.Get("key2")
+	if !ok2 || val2 != "updated_value2" {
+		t.Errorf("Expected updated_value2, got %s, ok: %v", val2, ok2)
+	}
+}
+
 func TestConcurrentAccess(t *testing.T) {
 	myStore := store.NewStore(100)
 	var wg sync.WaitGroup
