@@ -3,14 +3,17 @@ package store
 type Store struct {
 	data     map[string]*Node
 	capacity int
+	lru      *LruList
 }
 
 func NewStore(capacity int) *Store {
 	return &Store{data: make(map[string]*Node),
-		capacity: capacity}
+		capacity: capacity,
+		lru:      NewLru(),
+	}
 
 }
-func (str *Store) Set(lru *LruList, key string, value string) bool {
+func (str *Store) Set(key string, value string) bool {
 	temp := &Node{
 		value: value,
 		key:   key,
@@ -18,46 +21,46 @@ func (str *Store) Set(lru *LruList, key string, value string) bool {
 
 	if len(str.data) < str.capacity {
 
-		if lru.Head == nil && lru.Tail == nil {
+		if str.lru.Head == nil && str.lru.Tail == nil {
 			str.data[key] = temp
-			lru.Head = temp
-			lru.Tail = temp
+			str.lru.Head = temp
+			str.lru.Tail = temp
 			return true
 		}
 
 		str.data[key] = temp
-		temp.next = lru.Head
-		lru.Head.prev = temp
-		lru.Head = temp
+		temp.next = str.lru.Head
+		str.lru.Head.prev = temp
+		str.lru.Head = temp
 		return true
 	} else {
 
-		if lru.Tail != nil {
-			keyToRemove := lru.Tail.key
-			lru.RemoveLeastUsed()
+		if str.lru.Tail != nil {
+			keyToRemove := str.lru.Tail.key
+			str.lru.RemoveLeastUsed()
 			str.Delete(keyToRemove)
 		}
 
 		str.data[key] = temp
-		if lru.Head != nil {
-			temp.next = lru.Head
-			lru.Head.prev = temp
+		if str.lru.Head != nil {
+			temp.next = str.lru.Head
+			str.lru.Head.prev = temp
 		}
-		lru.Head = temp
-		if lru.Tail == nil {
-			lru.Tail = temp
+		str.lru.Head = temp
+		if str.lru.Tail == nil {
+			str.lru.Tail = temp
 		}
 		return true
 	}
 }
-func (str *Store) Get(lru *LruList, key string) (string, bool) {
+func (str *Store) Get(key string) (string, bool) {
 	node, ok := str.data[key]
 	if !ok {
 		return "", ok
 	}
 
 	// If already at head, no need to move
-	if node == lru.Head {
+	if node == str.lru.Head {
 		return node.value, ok
 	}
 
@@ -70,21 +73,21 @@ func (str *Store) Get(lru *LruList, key string) (string, bool) {
 	}
 
 	// If removing tail, update tail pointer
-	if node == lru.Tail {
-		lru.Tail = node.prev
+	if node == str.lru.Tail {
+		str.lru.Tail = node.prev
 	}
 
 	// Move to head
 	node.prev = nil
-	node.next = lru.Head
-	if lru.Head != nil {
-		lru.Head.prev = node
+	node.next = str.lru.Head
+	if str.lru.Head != nil {
+		str.lru.Head.prev = node
 	}
-	lru.Head = node
+	str.lru.Head = node
 
 	// If list was empty, set tail
-	if lru.Tail == nil {
-		lru.Tail = node
+	if str.lru.Tail == nil {
+		str.lru.Tail = node
 	}
 
 	return node.value, ok

@@ -11,14 +11,13 @@ func main() {
 	fmt.Println("This is something ", *dotenvs.Capacity, dotenvs.Memory)
 
 	myStore := store.NewStore(*dotenvs.Capacity)
-	Lru := store.NewLru()
-	myStore.Set(Lru, "name", "Ravi")
-	myStore.Set(Lru, "age", "Ravi")
-	myStore.Set(Lru, "random", "Ravi")
-	myStore.Set(Lru, "random2", "Ravi")
-	fmt.Println(myStore.Get(Lru, "name"))
-	fmt.Println(myStore.Get(Lru, "age"))
-	fmt.Println(myStore.Get(Lru, "random"))
-	fmt.Println(myStore.Get(Lru, "random2"))
+	myStore.Set("name", "Ravi")
+	myStore.Set("age", "Ravi")
+	myStore.Set("random", "Ravi")
+	myStore.Set("random2", "Ravi")
+	fmt.Println(myStore.Get("name"))
+	fmt.Println(myStore.Get("age"))
+	fmt.Println(myStore.Get("random"))
+	fmt.Println(myStore.Get("random2"))
 
 }
