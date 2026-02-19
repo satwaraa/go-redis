@@ -1,7 +1,9 @@
 package tests
 
 import (
+	"fmt"
 	"goredis/internal/store"
+	"sync"
 	"testing"
 )
 
@@ -197,4 +199,30 @@ func TestStoreUpdateExistingKey(t *testing.T) {
 	if !ok2 || val2 != "value2" {
 		t.Errorf("Expected key2 to exist with value2")
 	}
+}
+
+func TestConcurrentAccess(t *testing.T) {
+	myStore := store.NewStore(100)
+	var wg sync.WaitGroup
+
+	// Launch 100 goroutines writing
+	wg.Add(100)
+	for i := 0; i < 100; i++ {
+		go func(idx int) {
+			defer wg.Done()
+			myStore.Set(fmt.Sprintf("key%d", idx), "value")
+		}(i)
+	}
+
+	// Launch 100 goroutines reading
+	wg.Add(100)
+	for i := 0; i < 100; i++ {
+		go func(idx int) {
+			defer wg.Done()
+			myStore.Get(fmt.Sprintf("key%d", idx))
+		}(i)
+	}
+
+	wg.Wait()
+	// Should not crash with race conditions!
 }

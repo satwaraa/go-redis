@@ -1,6 +1,11 @@
 package store
 
+import (
+	"sync"
+)
+
 type Store struct {
+	mu       sync.RWMutex
 	data     map[string]*Node
 	capacity int
 	lru      *LruList
@@ -14,6 +19,8 @@ func NewStore(capacity int) *Store {
 
 }
 func (str *Store) Set(key string, value string) bool {
+	str.mu.Lock()
+	defer str.mu.Unlock()
 	temp := &Node{
 		value: value,
 		key:   key,
@@ -25,6 +32,7 @@ func (str *Store) Set(key string, value string) bool {
 			str.data[key] = temp
 			str.lru.Head = temp
 			str.lru.Tail = temp
+
 			return true
 		}
 
@@ -32,13 +40,14 @@ func (str *Store) Set(key string, value string) bool {
 		temp.next = str.lru.Head
 		str.lru.Head.prev = temp
 		str.lru.Head = temp
+
 		return true
 	} else {
 
 		if str.lru.Tail != nil {
 			keyToRemove := str.lru.Tail.key
 			str.lru.RemoveLeastUsed()
-			str.Delete(keyToRemove)
+			delete(str.data, keyToRemove)
 		}
 
 		str.data[key] = temp
@@ -50,17 +59,22 @@ func (str *Store) Set(key string, value string) bool {
 		if str.lru.Tail == nil {
 			str.lru.Tail = temp
 		}
+
 		return true
 	}
 }
 func (str *Store) Get(key string) (string, bool) {
+	str.mu.Lock()
+	defer str.mu.Unlock()
 	node, ok := str.data[key]
 	if !ok {
+
 		return "", ok
 	}
 
 	// If already at head, no need to move
 	if node == str.lru.Head {
+
 		return node.value, ok
 	}
 
@@ -92,10 +106,42 @@ func (str *Store) Get(key string) (string, bool) {
 
 	return node.value, ok
 }
-func (str *Store) Delete(key string) bool {
+
+// deleteInternal removes a key without locking (for internal use only)
+func (str *Store) deleteInternal(key string) bool {
 	if _, ok := str.data[key]; !ok {
 		return false
 	}
+	// Case 1: Deleting middle Node
+	if str.data[key] == str.lru.Head && str.data[key] == str.lru.Tail {
+		str.lru.Head = nil
+		str.lru.Tail = nil
+
+		// Case 2: Deleting Head
+	} else if str.lru.Head == str.data[key] {
+		str.lru.Head = str.lru.Head.next
+		if str.lru.Head != nil {
+			str.lru.Head.prev = nil
+		}
+
+		// Case 3: Deleting Tail
+	} else if str.lru.Tail == str.data[key] {
+		str.lru.Tail = str.lru.Tail.prev
+		if str.lru.Tail != nil {
+			str.lru.Tail.next = nil
+		}
+		// Case 4: Node is Both Head and Tail
+	} else {
+		str.data[key].prev.next = str.data[key].next
+		str.data[key].next.prev = str.data[key].prev
+	}
+
 	delete(str.data, key)
 	return true
+}
+
+func (str *Store) Delete(key string) bool {
+	str.mu.Lock()
+	defer str.mu.Unlock()
+	return str.deleteInternal(key)
 }
