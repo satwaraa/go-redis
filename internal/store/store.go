@@ -1,7 +1,15 @@
 package store
 
 import (
+	"errors"
 	"sync"
+)
+
+var (
+	ErrKeyNotFound  = errors.New("key not found")
+	ErrStoreFull    = errors.New("store is full")
+	ErrInvalidKey   = errors.New("invalid key: cannot be empty")
+	ErrInvalidValue = errors.New("invalid value")
 )
 
 type Store struct {
@@ -18,7 +26,10 @@ func NewStore(capacity int) *Store {
 	}
 
 }
-func (str *Store) Set(key string, value string) bool {
+func (str *Store) Set(key string, value string) error {
+	if key == "" {
+		return ErrInvalidKey
+	}
 	str.mu.Lock()
 	defer str.mu.Unlock()
 	temp := &Node{
@@ -28,7 +39,7 @@ func (str *Store) Set(key string, value string) bool {
 	if node, ok := str.data[key]; ok {
 		node.value = value
 		str.lru.MoveToHead(node)
-		return true
+		return nil
 	}
 
 	if len(str.data) < str.capacity {
@@ -38,7 +49,7 @@ func (str *Store) Set(key string, value string) bool {
 			str.lru.Head = temp
 			str.lru.Tail = temp
 
-			return true
+			return nil
 		}
 
 		str.data[key] = temp
@@ -46,7 +57,7 @@ func (str *Store) Set(key string, value string) bool {
 		str.lru.Head.prev = temp
 		str.lru.Head = temp
 
-		return true
+		return nil
 	} else {
 
 		if str.lru.Tail != nil {
@@ -65,22 +76,25 @@ func (str *Store) Set(key string, value string) bool {
 			str.lru.Tail = temp
 		}
 
-		return true
+		return nil
 	}
 }
-func (str *Store) Get(key string) (string, bool) {
+func (str *Store) Get(key string) (string, error) {
+	if key == "" {
+		return "", ErrInvalidKey
+	}
 	str.mu.Lock()
 	defer str.mu.Unlock()
 	node, ok := str.data[key]
 	if !ok {
 
-		return "", ok
+		return "", ErrKeyNotFound
 	}
 
 	// If already at head, no need to move
 	if node == str.lru.Head {
 
-		return node.value, ok
+		return node.value, nil
 	}
 
 	// Remove node from current position
@@ -109,13 +123,16 @@ func (str *Store) Get(key string) (string, bool) {
 		str.lru.Tail = node
 	}
 
-	return node.value, ok
+	return node.value, nil
 }
 
 // deleteInternal removes a key without locking (for internal use only)
-func (str *Store) deleteInternal(key string) bool {
+func (str *Store) deleteInternal(key string) error {
+	if key == "" {
+		return ErrInvalidKey
+	}
 	if _, ok := str.data[key]; !ok {
-		return false
+		return ErrKeyNotFound
 	}
 	// Case 1: Deleting middle Node
 	if str.data[key] == str.lru.Head && str.data[key] == str.lru.Tail {
@@ -142,10 +159,10 @@ func (str *Store) deleteInternal(key string) bool {
 	}
 
 	delete(str.data, key)
-	return true
+	return nil
 }
 
-func (str *Store) Delete(key string) bool {
+func (str *Store) Delete(key string) error {
 	str.mu.Lock()
 	defer str.mu.Unlock()
 	return str.deleteInternal(key)

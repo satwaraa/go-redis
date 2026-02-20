@@ -12,18 +12,18 @@ func TestStoreSetAndGet(t *testing.T) {
 
 	// Test basic set and get
 	myStore.Set("key1", "value1")
-	val, ok := myStore.Get("key1")
-	if !ok || val != "value1" {
-		t.Errorf("Expected value1, got %s, ok: %v", val, ok)
+	val, err := myStore.Get("key1")
+	if err != nil || val != "value1" {
+		t.Errorf("Expected value1, got %s, err: %v", val, err)
 	}
 }
 
 func TestStoreGetNonExistent(t *testing.T) {
 	myStore := store.NewStore(3)
 	// Test getting non-existent key
-	val, ok := myStore.Get("nonexistent")
-	if ok {
-		t.Errorf("Expected ok to be false for non-existent key")
+	val, err := myStore.Get("nonexistent")
+	if err != store.ErrKeyNotFound {
+		t.Errorf("Expected ErrKeyNotFound for non-existent key")
 	}
 	if val != "" {
 		t.Errorf("Expected empty string for non-existent key, got %s", val)
@@ -40,20 +40,20 @@ func TestStoreLRUEviction(t *testing.T) {
 	myStore.Set("key3", "value3")
 
 	// key1 should be evicted
-	_, ok := myStore.Get("key1")
-	if ok {
+	_, err := myStore.Get("key1")
+	if err != store.ErrKeyNotFound {
 		t.Errorf("Expected key1 to be evicted")
 	}
 
 	// key2 and key3 should still exist
-	val2, ok2 := myStore.Get("key2")
-	if !ok2 || val2 != "value2" {
-		t.Errorf("Expected key2 to exist with value2, got %s, ok: %v", val2, ok2)
+	val2, err2 := myStore.Get("key2")
+	if err2 != nil || val2 != "value2" {
+		t.Errorf("Expected key2 to exist with value2, got %s, err: %v", val2, err2)
 	}
 
-	val3, ok3 := myStore.Get("key3")
-	if !ok3 || val3 != "value3" {
-		t.Errorf("Expected key3 to exist with value3, got %s, ok: %v", val3, ok3)
+	val3, err3 := myStore.Get("key3")
+	if err3 != nil || val3 != "value3" {
+		t.Errorf("Expected key3 to exist with value3, got %s, err: %v", val3, err3)
 	}
 }
 
@@ -70,20 +70,20 @@ func TestStoreLRUAccessOrder(t *testing.T) {
 	myStore.Set("key3", "value3")
 
 	// key2 should be evicted
-	_, ok := myStore.Get("key2")
-	if ok {
+	_, err := myStore.Get("key2")
+	if err != store.ErrKeyNotFound {
 		t.Errorf("Expected key2 to be evicted after accessing key1")
 	}
 
 	// key1 and key3 should still exist
-	val1, ok1 := myStore.Get("key1")
-	if !ok1 || val1 != "value1" {
-		t.Errorf("Expected key1 to exist with value1, got %s, ok: %v", val1, ok1)
+	val1, err1 := myStore.Get("key1")
+	if err1 != nil || val1 != "value1" {
+		t.Errorf("Expected key1 to exist with value1, got %s, err: %v", val1, err1)
 	}
 
-	val3, ok3 := myStore.Get("key3")
-	if !ok3 || val3 != "value3" {
-		t.Errorf("Expected key3 to exist with value3, got %s, ok: %v", val3, ok3)
+	val3, err3 := myStore.Get("key3")
+	if err3 != nil || val3 != "value3" {
+		t.Errorf("Expected key3 to exist with value3, got %s, err: %v", val3, err3)
 	}
 }
 
@@ -92,33 +92,33 @@ func TestStoreCapacityOne(t *testing.T) {
 
 	// Add first item
 	myStore.Set("key1", "value1")
-	val1, ok1 := myStore.Get("key1")
-	if !ok1 || val1 != "value1" {
-		t.Errorf("Expected key1 to exist, got ok: %v", ok1)
+	val1, err1 := myStore.Get("key1")
+	if err1 != nil || val1 != "value1" {
+		t.Errorf("Expected key1 to exist, got err: %v", err1)
 	}
 
 	// Add second item, should evict first
 	myStore.Set("key2", "value2")
-	_, ok := myStore.Get("key1")
-	if ok {
+	_, err := myStore.Get("key1")
+	if err != store.ErrKeyNotFound {
 		t.Errorf("Expected key1 to be evicted")
 	}
 
-	val2, ok2 := myStore.Get("key2")
-	if !ok2 || val2 != "value2" {
-		t.Errorf("Expected key2 to exist with value2, got %s, ok: %v", val2, ok2)
+	val2, err2 := myStore.Get("key2")
+	if err2 != nil || val2 != "value2" {
+		t.Errorf("Expected key2 to exist with value2, got %s, err: %v", val2, err2)
 	}
 
 	// Add third item, should evict second
 	myStore.Set("key3", "value3")
-	_, ok = myStore.Get("key2")
-	if ok {
+	_, err = myStore.Get("key2")
+	if err != store.ErrKeyNotFound {
 		t.Errorf("Expected key2 to be evicted")
 	}
 
-	val3, ok3 := myStore.Get("key3")
-	if !ok3 || val3 != "value3" {
-		t.Errorf("Expected key3 to exist with value3, got %s, ok: %v", val3, ok3)
+	val3, err3 := myStore.Get("key3")
+	if err3 != nil || val3 != "value3" {
+		t.Errorf("Expected key3 to exist with value3, got %s, err: %v", val3, err3)
 	}
 }
 
@@ -139,17 +139,17 @@ func TestStoreMultipleAccesses(t *testing.T) {
 	myStore.Set("key4", "value4")
 
 	// key2 should be evicted
-	_, ok := myStore.Get("key2")
-	if ok {
+	_, err := myStore.Get("key2")
+	if err != store.ErrKeyNotFound {
 		t.Errorf("Expected key2 to be evicted")
 	}
 
 	// Others should exist
-	_, ok1 := myStore.Get("key1")
-	_, ok3 := myStore.Get("key3")
-	_, ok4 := myStore.Get("key4")
+	_, err1 := myStore.Get("key1")
+	_, err3 := myStore.Get("key3")
+	_, err4 := myStore.Get("key4")
 
-	if !ok1 || !ok3 || !ok4 {
+	if err1 != nil || err3 != nil || err4 != nil {
 		t.Errorf("Expected key1, key3, key4 to exist")
 	}
 }
@@ -160,21 +160,21 @@ func TestStoreDelete(t *testing.T) {
 	myStore.Set("key1", "value1")
 
 	// Test successful delete
-	deleted := myStore.Delete("key1")
-	if !deleted {
-		t.Errorf("Expected Delete to return true")
+	err := myStore.Delete("key1")
+	if err != nil {
+		t.Errorf("Expected Delete to succeed, got err: %v", err)
 	}
 
 	// Verify key is gone
-	_, ok := myStore.Get("key1")
-	if ok {
+	_, err = myStore.Get("key1")
+	if err != store.ErrKeyNotFound {
 		t.Errorf("Expected key1 to be deleted")
 	}
 
 	// Test deleting non-existent key
-	deleted = myStore.Delete("nonexistent")
-	if deleted {
-		t.Errorf("Expected Delete to return false for non-existent key")
+	err = myStore.Delete("nonexistent")
+	if err != store.ErrKeyNotFound {
+		t.Errorf("Expected ErrKeyNotFound for non-existent key, got: %v", err)
 	}
 }
 
@@ -189,14 +189,14 @@ func TestStoreUpdateExistingKey(t *testing.T) {
 	myStore.Set("key1", "updated_value1")
 
 	// Should have updated value
-	val, ok := myStore.Get("key1")
-	if !ok || val != "updated_value1" {
-		t.Errorf("Expected updated_value1, got %s, ok: %v", val, ok)
+	val, err := myStore.Get("key1")
+	if err != nil || val != "updated_value1" {
+		t.Errorf("Expected updated_value1, got %s, err: %v", val, err)
 	}
 
 	// Both keys should still exist
-	val2, ok2 := myStore.Get("key2")
-	if !ok2 || val2 != "value2" {
+	val2, err2 := myStore.Get("key2")
+	if err2 != nil || val2 != "value2" {
 		t.Errorf("Expected key2 to exist with value2")
 	}
 }
@@ -213,14 +213,14 @@ func TestUpdateDoesNotCreateDuplicateNodes(t *testing.T) {
 	myStore.Set("key1", "v1_update3")
 
 	// Both keys should still exist (no eviction from updates)
-	val1, ok1 := myStore.Get("key1")
-	if !ok1 || val1 != "v1_update3" {
-		t.Errorf("Expected v1_update3, got %s, ok: %v", val1, ok1)
+	val1, err1 := myStore.Get("key1")
+	if err1 != nil || val1 != "v1_update3" {
+		t.Errorf("Expected v1_update3, got %s, err: %v", val1, err1)
 	}
 
-	val2, ok2 := myStore.Get("key2")
-	if !ok2 || val2 != "value2" {
-		t.Errorf("Expected key2 to still exist with value2, got %s, ok: %v", val2, ok2)
+	val2, err2 := myStore.Get("key2")
+	if err2 != nil || val2 != "value2" {
+		t.Errorf("Expected key2 to still exist with value2, got %s, err: %v", val2, err2)
 	}
 }
 
@@ -237,21 +237,21 @@ func TestUpdateMovesToHead(t *testing.T) {
 	myStore.Set("key3", "value3")
 
 	// "old" should exist (was moved to head by update)
-	val, ok := myStore.Get("old")
-	if !ok || val != "value_old_updated" {
-		t.Errorf("Expected old to exist with value_old_updated, got %s, ok: %v", val, ok)
+	val, err := myStore.Get("old")
+	if err != nil || val != "value_old_updated" {
+		t.Errorf("Expected old to exist with value_old_updated, got %s, err: %v", val, err)
 	}
 
 	// "new" should be evicted
-	_, ok2 := myStore.Get("new")
-	if ok2 {
+	_, err2 := myStore.Get("new")
+	if err2 != store.ErrKeyNotFound {
 		t.Errorf("Expected 'new' to be evicted since 'old' was moved to head by update")
 	}
 
 	// key3 should exist
-	val3, ok3 := myStore.Get("key3")
-	if !ok3 || val3 != "value3" {
-		t.Errorf("Expected key3 to exist with value3, got %s, ok: %v", val3, ok3)
+	val3, err3 := myStore.Get("key3")
+	if err3 != nil || val3 != "value3" {
+		t.Errorf("Expected key3 to exist with value3, got %s, err: %v", val3, err3)
 	}
 }
 
@@ -264,14 +264,14 @@ func TestUpdateAtCapacityDoesNotEvict(t *testing.T) {
 	// Store is at capacity. Updating existing key should NOT evict anything
 	myStore.Set("key2", "updated_value2")
 
-	val1, ok1 := myStore.Get("key1")
-	if !ok1 || val1 != "value1" {
-		t.Errorf("Expected key1 to still exist after update, got %s, ok: %v", val1, ok1)
+	val1, err1 := myStore.Get("key1")
+	if err1 != nil || val1 != "value1" {
+		t.Errorf("Expected key1 to still exist after update, got %s, err: %v", val1, err1)
 	}
 
-	val2, ok2 := myStore.Get("key2")
-	if !ok2 || val2 != "updated_value2" {
-		t.Errorf("Expected updated_value2, got %s, ok: %v", val2, ok2)
+	val2, err2 := myStore.Get("key2")
+	if err2 != nil || val2 != "updated_value2" {
+		t.Errorf("Expected updated_value2, got %s, err: %v", val2, err2)
 	}
 }
 
