@@ -90,38 +90,12 @@ func (str *Store) Get(key string) (string, error) {
 
 		return "", ErrKeyNotFound
 	}
-
-	// If already at head, no need to move
-	if node == str.lru.Head {
-
-		return node.value, nil
+	if node.isExpired() {
+		str.lru.RemoveNode(node)
+		delete(str.data, key)
+		return "", ErrKeyExpired
 	}
-
-	// Remove node from current position
-	if node.prev != nil {
-		node.prev.next = node.next
-	}
-	if node.next != nil {
-		node.next.prev = node.prev
-	}
-
-	// If removing tail, update tail pointer
-	if node == str.lru.Tail {
-		str.lru.Tail = node.prev
-	}
-
-	// Move to head
-	node.prev = nil
-	node.next = str.lru.Head
-	if str.lru.Head != nil {
-		str.lru.Head.prev = node
-	}
-	str.lru.Head = node
-
-	// If list was empty, set tail
-	if str.lru.Tail == nil {
-		str.lru.Tail = node
-	}
+	str.lru.MoveToHead(node)
 
 	return node.value, nil
 }

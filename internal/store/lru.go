@@ -1,10 +1,20 @@
 package store
 
+import (
+	"errors"
+	"time"
+)
+
+var (
+	ErrKeyExpired = errors.New("Key has expired")
+)
+
 type Node struct {
-	key   string
-	value string
-	prev  *Node
-	next  *Node
+	key      string
+	value    string
+	prev     *Node
+	next     *Node
+	expireAt *time.Time // nil  = no expiration
 }
 type LruList struct {
 	Head *Node
@@ -54,4 +64,23 @@ func (st *LruList) RemoveLeastUsed() bool {
 	}
 	temp = nil
 	return true
+}
+
+func (st *LruList) RemoveNode(nd *Node) {
+	if nd == st.Head {
+		st.Head = nd.next
+		if st.Head != nil {
+			st.Head.prev = nil
+		}
+		return
+	}
+	if nd == st.Tail {
+		st.Tail = nd.prev
+		if st.Tail != nil {
+			st.Tail.next = nil
+		}
+		return
+	}
+	nd.prev.next = nd.next
+	nd.next.prev = nd.prev
 }

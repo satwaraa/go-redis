@@ -5,6 +5,7 @@ import (
 	"goredis/internal/store"
 	"sync"
 	"testing"
+	"time"
 )
 
 func TestStoreSetAndGet(t *testing.T) {
@@ -299,4 +300,101 @@ func TestConcurrentAccess(t *testing.T) {
 
 	wg.Wait()
 	// Should not crash with race conditions!
+}
+
+func TestCleanExpiredKeysRemovesOnlyExpiredKeys(t *testing.T) {
+	myStore := store.NewStore(5)
+
+	// Set 2 keys with short TTL and 2 without TTL
+	myStore.SetWithTTL("expire1", "val1", 50*time.Millisecond)
+	myStore.SetWithTTL("expire2", "val2", 50*time.Millisecond)
+	myStore.Set("keep1", "val_keep1")
+	myStore.Set("keep2", "val_keep2")
+
+	// Wait for TTL keys to expire
+	time.Sleep(100 * time.Millisecond)
+
+	// Trigger cleaner
+	myStore.StartTTLCleaner(10 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
+
+	// Expired keys should be gone
+	_, err1 := myStore.Get("expire1")
+	if err1 != store.ErrKeyNotFound {
+		t.Errorf("Expected expire1 to be cleaned, got err: %v", err1)
+	}
+
+	_, err2 := myStore.Get("expire2")
+	if err2 != store.ErrKeyNotFound {
+		t.Errorf("Expected expire2 to be cleaned, got err: %v", err2)
+	}
+
+	// Non-TTL keys should still exist
+	val1, errK1 := myStore.Get("keep1")
+	if errK1 != nil || val1 != "val_keep1" {
+		t.Errorf("Expected keep1 to exist with val_keep1, got %s, err: %v", val1, errK1)
+	}
+
+	val2, errK2 := myStore.Get("keep2")
+	if errK2 != nil || val2 != "val_keep2" {
+		t.Errorf("Expected keep2 to exist with val_keep2, got %s, err: %v", val2, errK2)
+	}
+}
+
+func TestCleanExpiredKeysEmptyStore(t *testing.T) {
+	myStore := store.NewStore(5)
+
+	// Should not panic on empty store
+	myStore.StartTTLCleaner(10 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
+	// If we get here without a panic, test passes
+}
+
+func TestCleanExpiredKeysAllExpired(t *testing.T) {
+	myStore := store.NewStore(3)
+
+	myStore.SetWithTTL("a", "1", 50*time.Millisecond)
+	myStore.SetWithTTL("b", "2", 50*time.Millisecond)
+	myStore.SetWithTTL("c", "3", 50*time.Millisecond)
+
+	time.Sleep(100 * time.Millisecond)
+
+	myStore.StartTTLCleaner(10 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
+
+	// All keys should be gone
+	_, errA := myStore.Get("a")
+	_, errB := myStore.Get("b")
+	_, errC := myStore.Get("c")
+
+	if errA != store.ErrKeyNotFound {
+		t.Errorf("Expected a to be cleaned, got err: %v", errA)
+	}
+	if errB != store.ErrKeyNotFound {
+		t.Errorf("Expected b to be cleaned, got err: %v", errB)
+	}
+	if errC != store.ErrKeyNotFound {
+		t.Errorf("Expected c to be cleaned, got err: %v", errC)
+	}
+}
+
+func TestCleanerDoesNotRemoveNonExpiredTTLKeys(t *testing.T) {
+	myStore := store.NewStore(3)
+
+	// Set keys with long TTL — should NOT be cleaned
+	myStore.SetWithTTL("alive1", "val1", 10*time.Second)
+	myStore.SetWithTTL("alive2", "val2", 10*time.Second)
+
+	myStore.StartTTLCleaner(10 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
+
+	val1, err1 := myStore.Get("alive1")
+	if err1 != nil || val1 != "val1" {
+		t.Errorf("Expected alive1 to still exist, got %s, err: %v", val1, err1)
+	}
+
+	val2, err2 := myStore.Get("alive2")
+	if err2 != nil || val2 != "val2" {
+		t.Errorf("Expected alive2 to still exist, got %s, err: %v", val2, err2)
+	}
 }
