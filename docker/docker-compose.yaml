@@ -1,0 +1,6 @@
+services:
+  goredis:
+    image: goredis:0.0.1
+    container_name: goredis
+    environment:
+      - Capacity=2

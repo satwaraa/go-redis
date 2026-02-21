@@ -12,11 +12,21 @@ var (
 	ErrInvalidValue = errors.New("invalid value")
 )
 
+type StoreStats struct {
+	Keys      int
+	Capacity  int
+	Hits      int64
+	Misses    int64
+	Evictions int64
+}
 type Store struct {
-	mu       sync.RWMutex
-	data     map[string]*Node
-	capacity int
-	lru      *LruList
+	mu        sync.RWMutex
+	data      map[string]*Node
+	capacity  int
+	lru       *LruList
+	hits      int64
+	misses    int64
+	evictions int64
 }
 
 func NewStore(capacity int) *Store {
@@ -24,7 +34,6 @@ func NewStore(capacity int) *Store {
 		capacity: capacity,
 		lru:      NewLru(),
 	}
-
 }
 func (str *Store) Set(key string, value string) error {
 	if key == "" {
@@ -87,7 +96,7 @@ func (str *Store) Get(key string) (string, error) {
 	defer str.mu.Unlock()
 	node, ok := str.data[key]
 	if !ok {
-
+		str.misses++
 		return "", ErrKeyNotFound
 	}
 	if node.isExpired() {
@@ -95,6 +104,7 @@ func (str *Store) Get(key string) (string, error) {
 		delete(str.data, key)
 		return "", ErrKeyExpired
 	}
+	str.hits++
 	str.lru.MoveToHead(node)
 
 	return node.value, nil
@@ -140,4 +150,17 @@ func (str *Store) Delete(key string) error {
 	str.mu.Lock()
 	defer str.mu.Unlock()
 	return str.deleteInternal(key)
+}
+
+func (s *Store) Stats() StoreStats {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return StoreStats{
+		Keys:      len(s.data),
+		Capacity:  s.capacity,
+		Hits:      s.hits,
+		Misses:    s.misses,
+		Evictions: s.evictions,
+	}
 }

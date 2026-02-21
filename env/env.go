@@ -16,7 +16,7 @@ type EnvVars struct {
 func LoadEnv() EnvVars {
 	err := godotenv.Load(".env")
 	if err != nil {
-		log.Fatalln("Error loading .env file.")
+		log.Println("No .env file found, reading from environment variables.")
 	}
 	memory := os.Getenv("Memory")
 	capacity := os.Getenv("Capacity")

@@ -67,6 +67,7 @@ func (st *LruList) RemoveLeastUsed() bool {
 }
 
 func (st *LruList) RemoveNode(nd *Node) {
+
 	if nd == st.Head {
 		st.Head = nd.next
 		if st.Head != nil {
