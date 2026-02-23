@@ -21,11 +21,16 @@ func main() {
 	// Enable auto-save every 5 minutes
 	myStore.EnableAutoSave(snapshotPath, 1*time.Minute)
 
-	// Save on shutdown
-	myStore.SaveOnShutdown(snapshotPath)
+	// Save on shutdown (Ctrl+C)
+	done := myStore.SaveOnShutdown(snapshotPath)
 	// Start TTL cleaner
 	myStore.StartTTLCleaner(1 * time.Minute)
 	c := cli.NewCLI(myStore)
 	c.Start()
 
+	// If CLI exited via Ctrl+C, wait for save to finish
+	select {
+	case <-done:
+	default:
+	}
 }

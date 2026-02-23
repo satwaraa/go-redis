@@ -31,24 +31,43 @@ func (str *Store) SaveSnapshot(filepath string) error {
 		Capacity: str.capacity,
 		Entries:  make([]SnapshotEntry, 0, len(str.data)),
 	}
+	count := 0
 
-	for key, node := range str.data {
-
-		// skip expired key.
+	for node := str.lru.Head; node != nil; node = node.next {
 		if node.isExpired() {
 			continue
 		}
-		entry := SnapshotEntry{
-			Key:      key,
+		snapshot.Entries = append(snapshot.Entries, SnapshotEntry{
+
+			Key:      node.key,
 			Value:    node.value,
 			ExpireAt: node.expireAt,
-		}
-		snapshot.Entries = append(snapshot.Entries, entry)
-		//marshal to json
+		})
+		count++
 	}
-	data, error := json.MarshalIndent(snapshot, "", " ")
-	if error != nil {
-		return fmt.Errorf("marshal failed: %w", error)
+
+	backup, readErr := os.ReadFile(filepath)
+	hasExistingFile := readErr == nil
+
+	if readErr != nil && !os.IsNotExist(readErr) {
+		return fmt.Errorf("read file failed: %w", readErr)
+	}
+
+	// If existing file, wipe it before writing to avoid partial override
+	if hasExistingFile {
+		wipeOldDataError := os.WriteFile(filepath, []byte{}, 0644)
+		if wipeOldDataError != nil {
+			writeBackupError := os.WriteFile(filepath, backup, 0644)
+			if writeBackupError != nil {
+				return fmt.Errorf("wipe old data failed: %w\n Restored old backup", wipeOldDataError)
+			}
+			return fmt.Errorf("wipe old data failed: %w\n Restored old backup", wipeOldDataError)
+		}
+	}
+
+	data, marshalErr := json.MarshalIndent(snapshot, "", " ")
+	if marshalErr != nil {
+		return fmt.Errorf("marshal failed: %w", marshalErr)
 	}
 	// Write to file
 	err := os.WriteFile(filepath, data, 0644)
@@ -62,6 +81,9 @@ func (str *Store) SaveSnapshot(filepath string) error {
 
 func (str *Store) LoadSnapshot(filepath string) error {
 	// Check if file exists
+	str.lru.Head = nil
+	str.lru.Tail = nil
+
 	data, err := os.ReadFile(filepath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -94,7 +116,7 @@ func (str *Store) LoadSnapshot(filepath string) error {
 			expireAt: entry.ExpireAt,
 		}
 
-		str.lru.AddToHead(node)
+		str.lru.AddToTail(node)
 		str.data[entry.Key] = node
 
 		// Stop if capacity reached
@@ -113,16 +135,18 @@ func (str *Store) EnableAutoSave(filepath string, interval time.Duration) {
 		for range ticker.C {
 			err := str.SaveSnapshot(filepath)
 			if err != nil {
-				// Log error (add proper logging in GOR-32)
-				fmt.Printf("Auto-save failed: %v\n", err)
+				fmt.Printf("\nAuto-save failed: %v\n", err)
+			} else {
+				fmt.Printf("\nAuto-save complete (%s)\n", filepath)
 			}
+			fmt.Print("goredis> ")
 		}
 	}()
 }
 
-// SaveOnShutdown saves before program exits
-func (s *Store) SaveOnShutdown(filepath string) {
-	// Set up signal handling
+// SaveOnShutdown saves before program exits and returns a channel
+func (s *Store) SaveOnShutdown(filepath string) <-chan struct{} {
+	done := make(chan struct{})
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
@@ -135,6 +159,9 @@ func (s *Store) SaveOnShutdown(filepath string) {
 		} else {
 			fmt.Println("Data saved successfully")
 		}
+		close(done)
 		os.Exit(0)
 	}()
+
+	return done
 }

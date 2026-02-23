@@ -164,3 +164,33 @@ func (s *Store) Stats() StoreStats {
 		Evictions: s.evictions,
 	}
 }
+
+func (str *Store) Keys() []string {
+	str.mu.RLock()
+	defer str.mu.RUnlock()
+	keys := make([]string, 0, len(str.data))
+	for key := range str.data {
+		keys = append(keys, key)
+	}
+	return keys
+}
+
+func (str *Store) PrintList() {
+	str.mu.RLock()
+	defer str.mu.RUnlock()
+	str.lru.PrintList()
+}
+
+func (str *Store) Exists(key string) bool {
+	str.mu.RLock()
+	defer str.mu.RUnlock()
+	_, ok := str.data[key]
+	return ok
+}
+func (str *Store) Clear() {
+	str.mu.Lock()
+	defer str.mu.Unlock()
+	str.data = make(map[string]*Node)
+	str.lru = NewLru()
+
+}

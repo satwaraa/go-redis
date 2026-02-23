@@ -55,6 +55,8 @@ func (c *CLI) Start() {
 
 		if cmd == "QUIT" || cmd == "EXIT" {
 			fmt.Println("Goodbye!")
+			c.store.SaveSnapshot("goredis_data.json")
+
 			break
 		}
 
@@ -77,6 +79,20 @@ func (c *CLI) executeCommand(cmd string, args []string) {
 		c.handleHelp(args)
 	case "STATS":
 		c.handleStats(args)
+	case "KEYS":
+		c.handleKeys()
+	case "SAVE":
+		c.store.SaveSnapshot("goredis_data.json")
+	case "LOAD":
+		c.store.LoadSnapshot("goredis_data.json")
+	case "PRINT":
+		c.store.PrintList()
+	case "EXISTS":
+		c.handleExists(args)
+	case "CLEAR":
+		c.store.Clear()
+	case "EXPIRE":
+		c.handleExpire(args)
 	default:
 		fmt.Printf("Unknown command: %s. Type HELP for commands.\n", cmd)
 	}
@@ -179,6 +195,44 @@ func (c *CLI) handleTTL(args []string) {
 			fmt.Printf("%d (seconds)\n", int(ttl.Seconds()))
 		}
 	}
+}
+func (c *CLI) handleKeys() {
+	keys := c.store.Keys()
+	fmt.Println(keys)
+}
+
+func (c *CLI) handleExists(args []string) {
+	if len(args) < 1 {
+		fmt.Println("Usage: EXISTS <key>")
+		return
+	}
+	key := args[0]
+	exists := c.store.Exists(key)
+	if exists {
+		fmt.Println("1")
+	} else {
+		fmt.Println("0")
+	}
+}
+func (c *CLI) handleExpire(args []string) {
+	if len(args) < 2 {
+		fmt.Println("Usage: EXPIRE <key> <seconds>")
+		return
+	}
+	key := args[0]
+	seconds, err := strconv.Atoi(args[1])
+	if err != nil {
+		fmt.Println("Invalid seconds value")
+		return
+	}
+	ttl := time.Duration(seconds) * time.Second
+	err = c.store.SetExpiry(key, ttl)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+	} else {
+		fmt.Printf("OK (expires in %ds)\n", seconds)
+	}
+
 }
 
 func (c *CLI) handleHelp(args []string) {

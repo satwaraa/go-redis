@@ -3,6 +3,7 @@ package tests
 import (
 	"fmt"
 	"goredis/internal/store"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -396,5 +397,340 @@ func TestCleanerDoesNotRemoveNonExpiredTTLKeys(t *testing.T) {
 	val2, err2 := myStore.Get("alive2")
 	if err2 != nil || val2 != "val2" {
 		t.Errorf("Expected alive2 to still exist, got %s, err: %v", val2, err2)
+	}
+}
+
+// ==================== NEW TESTS ====================
+
+func TestExists(t *testing.T) {
+	myStore := store.NewStore(3)
+
+	myStore.Set("key1", "value1")
+
+	if !myStore.Exists("key1") {
+		t.Error("Expected key1 to exist")
+	}
+	if myStore.Exists("nonexistent") {
+		t.Error("Expected nonexistent key to not exist")
+	}
+
+	// Delete and check again
+	myStore.Delete("key1")
+	if myStore.Exists("key1") {
+		t.Error("Expected key1 to not exist after deletion")
+	}
+}
+
+func TestExistsAfterEviction(t *testing.T) {
+	myStore := store.NewStore(2)
+
+	myStore.Set("key1", "value1")
+	myStore.Set("key2", "value2")
+	myStore.Set("key3", "value3") // evicts key1
+
+	if myStore.Exists("key1") {
+		t.Error("Expected key1 to not exist after eviction")
+	}
+	if !myStore.Exists("key2") {
+		t.Error("Expected key2 to still exist")
+	}
+	if !myStore.Exists("key3") {
+		t.Error("Expected key3 to still exist")
+	}
+}
+
+func TestClear(t *testing.T) {
+	myStore := store.NewStore(5)
+
+	myStore.Set("a", "1")
+	myStore.Set("b", "2")
+	myStore.Set("c", "3")
+
+	myStore.Clear()
+
+	if myStore.Exists("a") || myStore.Exists("b") || myStore.Exists("c") {
+		t.Error("Expected all keys to be cleared")
+	}
+
+	stats := myStore.Stats()
+	if stats.Keys != 0 {
+		t.Errorf("Expected 0 keys after clear, got %d", stats.Keys)
+	}
+
+	// Should be able to add new keys after clear
+	myStore.Set("new", "value")
+	val, err := myStore.Get("new")
+	if err != nil || val != "value" {
+		t.Errorf("Expected to set new key after clear, got %s, err: %v", val, err)
+	}
+}
+
+func TestClearEmptyStore(t *testing.T) {
+	myStore := store.NewStore(5)
+	myStore.Clear()
+
+	stats := myStore.Stats()
+	if stats.Keys != 0 {
+		t.Errorf("Expected 0 keys, got %d", stats.Keys)
+	}
+}
+
+func TestKeys(t *testing.T) {
+	myStore := store.NewStore(5)
+
+	myStore.Set("alpha", "1")
+	myStore.Set("beta", "2")
+	myStore.Set("gamma", "3")
+
+	keys := myStore.Keys()
+	if len(keys) != 3 {
+		t.Errorf("Expected 3 keys, got %d", len(keys))
+	}
+
+	keyMap := make(map[string]bool)
+	for _, k := range keys {
+		keyMap[k] = true
+	}
+	for _, expected := range []string{"alpha", "beta", "gamma"} {
+		if !keyMap[expected] {
+			t.Errorf("Expected key %s to be in Keys() output", expected)
+		}
+	}
+}
+
+func TestKeysEmpty(t *testing.T) {
+	myStore := store.NewStore(5)
+	keys := myStore.Keys()
+	if len(keys) != 0 {
+		t.Errorf("Expected 0 keys, got %d", len(keys))
+	}
+}
+
+func TestKeysAfterDelete(t *testing.T) {
+	myStore := store.NewStore(5)
+
+	myStore.Set("a", "1")
+	myStore.Set("b", "2")
+	myStore.Delete("a")
+
+	keys := myStore.Keys()
+	if len(keys) != 1 {
+		t.Errorf("Expected 1 key after delete, got %d", len(keys))
+	}
+	if keys[0] != "b" {
+		t.Errorf("Expected remaining key to be 'b', got %s", keys[0])
+	}
+}
+
+func TestSetExpiry(t *testing.T) {
+	myStore := store.NewStore(5)
+
+	myStore.Set("key1", "value1")
+
+	err := myStore.SetExpiry("key1", 100*time.Millisecond)
+	if err != nil {
+		t.Errorf("Expected SetExpiry to succeed, got err: %v", err)
+	}
+
+	val, err := myStore.Get("key1")
+	if err != nil || val != "value1" {
+		t.Errorf("Expected key1 to exist immediately after SetExpiry, got %s, err: %v", val, err)
+	}
+
+	ttl, err := myStore.GetTTL("key1")
+	if err != nil {
+		t.Errorf("Expected GetTTL to succeed, got err: %v", err)
+	}
+	if ttl <= 0 {
+		t.Errorf("Expected positive TTL, got %v", ttl)
+	}
+
+	time.Sleep(150 * time.Millisecond)
+
+	_, err = myStore.Get("key1")
+	if err != store.ErrKeyExpired {
+		t.Errorf("Expected ErrKeyExpired after expiry, got: %v", err)
+	}
+}
+
+func TestSetExpiryOnNonExistentKey(t *testing.T) {
+	myStore := store.NewStore(5)
+
+	err := myStore.SetExpiry("nonexistent", 1*time.Second)
+	if err != store.ErrKeyNotFound {
+		t.Errorf("Expected ErrKeyNotFound, got: %v", err)
+	}
+}
+
+func TestSetExpiryRemovesTTL(t *testing.T) {
+	myStore := store.NewStore(5)
+
+	myStore.SetWithTTL("key1", "value1", 100*time.Millisecond)
+
+	// Remove TTL by setting <= 0
+	myStore.SetExpiry("key1", -1)
+
+	time.Sleep(150 * time.Millisecond)
+
+	val, err := myStore.Get("key1")
+	if err != nil || val != "value1" {
+		t.Errorf("Expected key1 to still exist after TTL removal, got %s, err: %v", val, err)
+	}
+
+	ttl, _ := myStore.GetTTL("key1")
+	if ttl != -1 {
+		t.Errorf("Expected TTL -1 (no expiration), got %v", ttl)
+	}
+}
+
+func TestSetWithTTLNewKey(t *testing.T) {
+	myStore := store.NewStore(5)
+
+	err := myStore.SetWithTTL("ttlkey", "ttlval", 200*time.Millisecond)
+	if err != nil {
+		t.Errorf("Expected SetWithTTL to succeed, got err: %v", err)
+	}
+
+	val, err := myStore.Get("ttlkey")
+	if err != nil || val != "ttlval" {
+		t.Errorf("Expected ttlval, got %s, err: %v", val, err)
+	}
+
+	time.Sleep(250 * time.Millisecond)
+
+	_, err = myStore.Get("ttlkey")
+	if err != store.ErrKeyExpired {
+		t.Errorf("Expected ErrKeyExpired, got: %v", err)
+	}
+}
+
+func TestSetWithTTLZeroDuration(t *testing.T) {
+	myStore := store.NewStore(5)
+
+	err := myStore.SetWithTTL("key", "val", 0)
+	if err == nil {
+		t.Error("Expected error for zero TTL")
+	}
+}
+
+func TestSetEmptyKey(t *testing.T) {
+	myStore := store.NewStore(5)
+
+	err := myStore.Set("", "value")
+	if err != store.ErrInvalidKey {
+		t.Errorf("Expected ErrInvalidKey for empty key, got: %v", err)
+	}
+}
+
+func TestGetEmptyKey(t *testing.T) {
+	myStore := store.NewStore(5)
+
+	_, err := myStore.Get("")
+	if err != store.ErrInvalidKey {
+		t.Errorf("Expected ErrInvalidKey for empty key, got: %v", err)
+	}
+}
+
+func TestSnapshotSaveAndLoad(t *testing.T) {
+	filepath := "/tmp/test_goredis_snapshot.json"
+
+	s1 := store.NewStore(5)
+	s1.Set("name", "Alice")
+	s1.Set("age", "30")
+	s1.Set("city", "NYC")
+
+	err := s1.SaveSnapshot(filepath)
+	if err != nil {
+		t.Fatalf("SaveSnapshot failed: %v", err)
+	}
+
+	s2 := store.NewStore(5)
+	err = s2.LoadSnapshot(filepath)
+	if err != nil {
+		t.Fatalf("LoadSnapshot failed: %v", err)
+	}
+
+	for _, k := range []string{"name", "age", "city"} {
+		if !s2.Exists(k) {
+			t.Errorf("Expected key %s to exist after load", k)
+		}
+	}
+
+	val, _ := s2.Get("name")
+	if val != "Alice" {
+		t.Errorf("Expected 'Alice', got %s", val)
+	}
+	val, _ = s2.Get("age")
+	if val != "30" {
+		t.Errorf("Expected '30', got %s", val)
+	}
+	val, _ = s2.Get("city")
+	if val != "NYC" {
+		t.Errorf("Expected 'NYC', got %s", val)
+	}
+
+	os.Remove(filepath)
+}
+
+func TestSnapshotSkipsExpiredKeys(t *testing.T) {
+	filepath := "/tmp/test_goredis_ttl_snapshot.json"
+
+	s1 := store.NewStore(5)
+	s1.SetWithTTL("temp", "gone_soon", 50*time.Millisecond)
+	s1.Set("permanent", "stays")
+
+	time.Sleep(100 * time.Millisecond)
+
+	err := s1.SaveSnapshot(filepath)
+	if err != nil {
+		t.Fatalf("SaveSnapshot failed: %v", err)
+	}
+
+	s2 := store.NewStore(5)
+	err = s2.LoadSnapshot(filepath)
+	if err != nil {
+		t.Fatalf("LoadSnapshot failed: %v", err)
+	}
+
+	if s2.Exists("temp") {
+		t.Error("Expected expired key 'temp' to not be loaded")
+	}
+
+	val, err := s2.Get("permanent")
+	if err != nil || val != "stays" {
+		t.Errorf("Expected 'stays', got %s, err: %v", val, err)
+	}
+
+	os.Remove(filepath)
+}
+
+func TestSnapshotNonExistentFile(t *testing.T) {
+	s := store.NewStore(5)
+	err := s.LoadSnapshot("/tmp/nonexistent_goredis_file_12345.json")
+	if err != nil {
+		t.Errorf("Loading non-existent snapshot should return nil, got: %v", err)
+	}
+}
+
+func TestStatsCounters(t *testing.T) {
+	myStore := store.NewStore(5)
+
+	myStore.Set("key1", "val1")
+	myStore.Get("key1")        // hit
+	myStore.Get("key1")        // hit
+	myStore.Get("nonexistent") // miss
+
+	stats := myStore.Stats()
+	if stats.Keys != 1 {
+		t.Errorf("Expected 1 key, got %d", stats.Keys)
+	}
+	if stats.Hits != 2 {
+		t.Errorf("Expected 2 hits, got %d", stats.Hits)
+	}
+	if stats.Misses != 1 {
+		t.Errorf("Expected 1 miss, got %d", stats.Misses)
+	}
+	if stats.Capacity != 5 {
+		t.Errorf("Expected capacity 5, got %d", stats.Capacity)
 	}
 }

@@ -2,6 +2,7 @@ package store
 
 import (
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -36,6 +37,19 @@ func (st *LruList) AddToHead(node *Node) {
 		st.Tail = node
 	}
 }
+func (st *LruList) AddToTail(node *Node) {
+	node.next = nil
+	node.prev = st.Tail
+	if st.Tail != nil {
+		st.Tail.next = node
+	}
+	st.Tail = node
+	if st.Head == nil {
+		st.Head = node
+	}
+
+}
+
 func (st *LruList) MoveToHead(node *Node) {
 	if node == st.Head {
 		return
@@ -95,4 +109,19 @@ func (st *LruList) RemoveNode(nd *Node) {
 	}
 	nd.prev.next = nd.next
 	nd.next.prev = nd.prev
+}
+
+func (st *LruList) PrintList() {
+	if st.Head == nil {
+		fmt.Println("(empty list)")
+		return
+	}
+	fmt.Println("Head → Tail:")
+	curr := st.Head
+	i := 1
+	for curr != nil {
+		fmt.Printf("  [%d] key=%q value=%q\n", i, curr.key, curr.value)
+		curr = curr.next
+		i++
+	}
 }
