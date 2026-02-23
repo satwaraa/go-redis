@@ -25,6 +25,17 @@ func NewLru() *LruList {
 	return &LruList{}
 }
 
+func (st *LruList) AddToHead(node *Node) {
+	node.prev = nil
+	node.next = st.Head
+	if st.Head != nil {
+		st.Head.prev = node
+	}
+	st.Head = node
+	if st.Tail == nil {
+		st.Tail = node
+	}
+}
 func (st *LruList) MoveToHead(node *Node) {
 	if node == st.Head {
 		return

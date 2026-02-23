@@ -182,7 +182,7 @@ func (c *CLI) handleTTL(args []string) {
 }
 
 func (c *CLI) handleHelp(args []string) {
-	fmt.Println(`
+	fmt.Print(`
 Available Commands:
   SET <key> <value>          - Set a key-value pair
   GET <key>                  - Get value by key
