@@ -3,6 +3,7 @@ package main
 import (
 	"goredis/env"
 	"goredis/internal/cli"
+	"goredis/internal/server"
 	"goredis/internal/store"
 	"log"
 	"time"
@@ -25,6 +26,11 @@ func main() {
 	done := myStore.SaveOnShutdown(snapshotPath)
 	// Start TTL cleaner
 	myStore.StartTTLCleaner(1 * time.Minute)
+
+	// Start TCP server in background (shares the same store)
+	srv := server.NewServer(myStore, *dotenvs.Tcp_port)
+	go srv.Start()
+
 	c := cli.NewCLI(myStore)
 	c.Start()
 

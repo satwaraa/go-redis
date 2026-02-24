@@ -10,6 +10,7 @@ import (
 
 type EnvVars struct {
 	Capacity *int
+	Tcp_port *int
 	Memory   *int
 }
 
@@ -19,7 +20,7 @@ func LoadEnv() EnvVars {
 		log.Println("No .env file found, reading from environment variables.")
 	}
 	memory := os.Getenv("Memory")
-	capacity := os.Getenv("Capacity")
+	capacity := os.Getenv("CAPACITY")
 	if memory == "" && capacity == "" {
 		log.Fatalln("Please Provide Memory or Capacity in environment variable ")
 	}
@@ -39,5 +40,15 @@ func LoadEnv() EnvVars {
 
 		envs.Capacity = &capacityInt
 	}
+	tcp_port := os.Getenv("TCP_PORT")
+	if tcp_port == "" {
+		log.Fatalln("Please Provide TCP_PORT in environment variable ")
+	}
+	tcp_portInt, err := strconv.Atoi(tcp_port)
+	if err != nil {
+		log.Fatalln("Invalid tcp_port value: must be an integer")
+	}
+	envs.Tcp_port = &tcp_portInt
+
 	return envs
 }
