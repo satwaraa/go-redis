@@ -9,9 +9,10 @@ import (
 )
 
 type EnvVars struct {
-	Capacity *int
-	Tcp_port *int
-	Memory   *int
+	Capacity  *int
+	Tcp_port  *int
+	Http_port *int
+	Memory    *int
 }
 
 func LoadEnv() EnvVars {
@@ -49,6 +50,16 @@ func LoadEnv() EnvVars {
 		log.Fatalln("Invalid tcp_port value: must be an integer")
 	}
 	envs.Tcp_port = &tcp_portInt
+
+	http_port := os.Getenv("HTTP_PORT")
+	if http_port == "" {
+		http_port = "8080" // default
+	}
+	http_portInt, err := strconv.Atoi(http_port)
+	if err != nil {
+		log.Fatalln("Invalid http_port value: must be an integer")
+	}
+	envs.Http_port = &http_portInt
 
 	return envs
 }

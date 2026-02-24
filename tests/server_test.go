@@ -3,8 +3,8 @@ package tests
 import (
 	"bufio"
 	"fmt"
-	"goredis/internal/server"
-	"goredis/internal/store"
+	"memstash/internal/server"
+	"memstash/internal/store"
 	"net"
 	"strings"
 	"sync"

@@ -6,12 +6,12 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o goredis ./cmd/kvstore/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o memstash ./cmd/kvstore/main.go
 
 
 FROM alpine:latest
 
 WORKDIR /app
-COPY --from=builder /app/goredis .
+COPY --from=builder /app/memstash .
 
-CMD ["./goredis"]
+CMD ["./memstash"]

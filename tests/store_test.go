@@ -2,7 +2,7 @@ package tests
 
 import (
 	"fmt"
-	"goredis/internal/store"
+	"memstash/internal/store"
 	"os"
 	"sync"
 	"testing"
@@ -632,7 +632,7 @@ func TestGetEmptyKey(t *testing.T) {
 }
 
 func TestSnapshotSaveAndLoad(t *testing.T) {
-	filepath := "/tmp/test_goredis_snapshot.json"
+	filepath := "/tmp/test_memstash_snapshot.json"
 
 	s1 := store.NewStore(5)
 	s1.Set("name", "Alice")
@@ -673,7 +673,7 @@ func TestSnapshotSaveAndLoad(t *testing.T) {
 }
 
 func TestSnapshotSkipsExpiredKeys(t *testing.T) {
-	filepath := "/tmp/test_goredis_ttl_snapshot.json"
+	filepath := "/tmp/test_memstash_ttl_snapshot.json"
 
 	s1 := store.NewStore(5)
 	s1.SetWithTTL("temp", "gone_soon", 50*time.Millisecond)
@@ -706,7 +706,7 @@ func TestSnapshotSkipsExpiredKeys(t *testing.T) {
 
 func TestSnapshotNonExistentFile(t *testing.T) {
 	s := store.NewStore(5)
-	err := s.LoadSnapshot("/tmp/nonexistent_goredis_file_12345.json")
+	err := s.LoadSnapshot("/tmp/nonexistent_memstash_file_12345.json")
 	if err != nil {
 		t.Errorf("Loading non-existent snapshot should return nil, got: %v", err)
 	}

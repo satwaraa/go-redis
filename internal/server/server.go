@@ -3,9 +3,9 @@ package server
 import (
 	"bufio"
 	"fmt"
-	"goredis/internal/protocol"
-	"goredis/internal/store"
 	"log"
+	"memstash/internal/protocol"
+	"memstash/internal/store"
 	"net"
 	"strconv"
 	"strings"
@@ -23,7 +23,7 @@ func NewServer(s *store.Store, port int) *Server {
 	return &Server{
 		store:        s,
 		port:         port,
-		snapshotPath: "goredis_data.json",
+		snapshotPath: "memstash_data.json",
 	}
 }
 

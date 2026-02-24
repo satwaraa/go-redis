@@ -139,7 +139,7 @@ func (str *Store) EnableAutoSave(filepath string, interval time.Duration) {
 			} else {
 				fmt.Printf("\nAuto-save complete (%s)\n", filepath)
 			}
-			fmt.Print("goredis> ")
+			fmt.Print("memstash> ")
 		}
 	}()
 }

@@ -3,7 +3,7 @@ package cli
 import (
 	"bufio"
 	"fmt"
-	"goredis/internal/store"
+	"memstash/internal/store"
 	"os"
 	"strconv"
 	"strings"
@@ -33,12 +33,12 @@ func (c *CLI) parseCommand(input string) (string, []string) {
 }
 
 func (c *CLI) Start() {
-	fmt.Println("GoRedis v1.0 - Interactive CLI")
+	fmt.Println("memstash v1.0 - Interactive CLI")
 	fmt.Println("Type 'HELP' for commands, 'QUIT' to exit")
 	fmt.Println()
 
 	for {
-		fmt.Print("goredis> ")
+		fmt.Print("memstash> ")
 
 		input, err := c.reader.ReadString('\n')
 		if err != nil {
@@ -55,7 +55,7 @@ func (c *CLI) Start() {
 
 		if cmd == "QUIT" || cmd == "EXIT" {
 			fmt.Println("Goodbye!")
-			c.store.SaveSnapshot("goredis_data.json")
+			c.store.SaveSnapshot("memstash_data.json")
 
 			break
 		}
@@ -82,9 +82,9 @@ func (c *CLI) executeCommand(cmd string, args []string) {
 	case "KEYS":
 		c.handleKeys()
 	case "SAVE":
-		c.store.SaveSnapshot("goredis_data.json")
+		c.store.SaveSnapshot("memstash_data.json")
 	case "LOAD":
-		c.store.LoadSnapshot("goredis_data.json")
+		c.store.LoadSnapshot("memstash_data.json")
 	case "PRINT":
 		c.store.PrintList()
 	case "EXISTS":

@@ -1,4 +1,4 @@
-module goredis
+module memstash
 
 go 1.25.6
 

@@ -1,6 +1,6 @@
 services:
-  goredis:
-    image: goredis:0.0.1
-    container_name: goredis
+  memstash:
+    image: memstash:0.0.1
+    container_name: memstash
     environment:
       - Capacity=2

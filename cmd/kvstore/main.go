@@ -1,11 +1,11 @@
 package main
 
 import (
-	"goredis/env"
-	"goredis/internal/cli"
-	"goredis/internal/server"
-	"goredis/internal/store"
 	"log"
+	"memstash/env"
+	"memstash/internal/cli"
+	"memstash/internal/server"
+	"memstash/internal/store"
 	"time"
 )
 
@@ -13,7 +13,7 @@ func main() {
 	dotenvs := env.LoadEnv()
 
 	myStore := store.NewStore(*dotenvs.Capacity)
-	snapshotPath := "goredis_data.json"
+	snapshotPath := "memstash_data.json"
 	err := myStore.LoadSnapshot(snapshotPath)
 	if err != nil {
 		log.Printf("Load failed: %v\n", err)
@@ -30,6 +30,10 @@ func main() {
 	// Start TCP server in background (shares the same store)
 	srv := server.NewServer(myStore, *dotenvs.Tcp_port)
 	go srv.Start()
+
+	// Start HTTP REST API server in background
+	httpSrv := server.NewHTTPServer(myStore, *dotenvs.Http_port)
+	go httpSrv.Start()
 
 	c := cli.NewCLI(myStore)
 	c.Start()
