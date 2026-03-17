@@ -1,5 +1,5 @@
 <p align="center">
-  <h1 align="center">⚡ memstash</h1>
+  <h1 align="center">⚡ memQ</h1>
   <p align="center">
     A Redis-inspired, in-memory key-value store built from scratch in Go.
     <br />
@@ -39,7 +39,7 @@
 
 ## Overview
 
-memstash is a lightweight, Redis-compatible in-memory key-value store written entirely in Go with **zero external dependencies** (aside from `godotenv` for configuration). It implements core Redis concepts including LRU eviction, key expiration (TTL), snapshot persistence, and the RESP wire protocol — making it compatible with standard Redis clients over TCP.
+ is a lightweight, Redis-compatible in-memory key-value store written entirely in Go with **zero external dependencies** (aside from `godotenv` for configuration). It implements core Redis concepts including LRU eviction, key expiration (TTL), snapshot persistence, and the RESP wire protocol — making it compatible with standard Redis clients over TCP.
 
 It also exposes a **JSON REST API** for web-based integrations and ships with an **interactive CLI** for local development and debugging.
 
@@ -61,7 +61,7 @@ It also exposes a **JSON REST API** for web-based integrations and ships with an
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│                      memstash                             │
+│                      memQ                             │
 │                                                          │
 │  ┌─────────────┐  ┌──────────────┐  ┌────────────────┐  │
 │  │ Interactive  │  │  TCP Server  │  │  HTTP Server   │  │
@@ -96,8 +96,8 @@ All three interfaces (CLI, TCP, HTTP) share a **single `Store` instance**, meani
 ### Installation
 
 ```bash
-git clone https://github.com/satwaraa/memstash.git
-cd memstash
+git clone https://github.com/satwaraa/memQ.git
+cd memQ
 go mod download
 ```
 
@@ -128,29 +128,29 @@ This starts all three interfaces simultaneously:
 
 ### Interactive CLI
 
-When you run memstash, you're dropped into an interactive REPL:
+When you run memQ, you're dropped into an interactive REPL:
 
 ```
-memstash v1.0 - Interactive CLI
+memQ v1.0 - Interactive CLI
 Type 'HELP' for commands, 'QUIT' to exit
 
-memstash> SET name "John Doe"
+memQ> SET name "John Doe"
 OK
-memstash> GET name
+memQ> GET name
 "John Doe"
-memstash> SETEX session 60 abc123
+memQ> SETEX session 60 abc123
 OK (expires in 60s)
-memstash> TTL session
+memQ> TTL session
 58 (seconds)
-memstash> KEYS
+memQ> KEYS
 [name session]
-memstash> STATS
+memQ> STATS
 Keys: 2
 Capacity: 10
 Hits: 2
 Misses: 0
 Evictions: 0
-memstash> QUIT
+memQ> QUIT
 Goodbye!
 ```
 
@@ -184,7 +184,7 @@ The REST API uses JSON for all requests and responses:
 # Set a key
 curl -X POST http://localhost:8080/keys/name \
   -H "Content-Type: application/json" \
-  -d '{"value": "memstash"}'
+  -d '{"value": "memQ"}'
 # {"key":"name","status":"OK"}
 
 # Set a key with TTL (expires in 60 seconds)
@@ -195,7 +195,7 @@ curl -X POST http://localhost:8080/keys/session \
 
 # Get a key
 curl http://localhost:8080/keys/name
-# {"key":"name","value":"memstash"}
+# {"key":"name","value":"memQ"}
 
 # Delete a key
 curl -X DELETE http://localhost:8080/keys/name
@@ -263,7 +263,7 @@ Full list of commands supported across CLI and TCP:
 ## Project Structure
 
 ```
-memstash/
+memQ/
 ├── cmd/
 │   └── kvstore/
 │       └── main.go              # Entry point — starts CLI, TCP, and HTTP servers
@@ -333,7 +333,7 @@ ttl, err := store.GetTTL("session") // returns time.Duration
 
 ### Persistence
 
-memstash persists data to JSON snapshot files:
+memQ persists data to JSON snapshot files:
 
 - **Manual save/load** — `SAVE` and `LOAD` commands
 - **Auto-save** — background goroutine saves at configurable intervals (default: 1 minute)
@@ -348,7 +348,7 @@ Snapshot format:
   "entries": [
     {
       "key": "name",
-      "value": "memstash",
+      "value": "memQ",
       "expire_at": "2026-02-25T00:00:00Z"
     }
   ]
@@ -377,7 +377,7 @@ The TCP server implements a subset of the [Redis Serialization Protocol (RESP)](
 ### Build the image
 
 ```bash
-docker build -t memstash:latest -f docker/dockerfile .
+docker build -t memQ:latest -f docker/dockerfile .
 ```
 
 ### Run with Docker Compose
@@ -391,7 +391,7 @@ docker compose -f docker/docker-compose.yaml up
 ```bash
 docker run -e CAPACITY=100 -e TCP_PORT=6379 -e HTTP_PORT=8080 \
   -p 6379:6379 -p 8080:8080 \
-  memstash:latest
+  memQ:latest
 ```
 
 > **Note:** The Docker image uses a multi-stage build (Go builder → Alpine) for a minimal final image.
